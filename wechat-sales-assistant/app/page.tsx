@@ -1,24 +1,30 @@
 'use client'
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense, lazy } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MessageSquare, Users, UserCheck, Clock, TrendingUp, BellRing, CheckCircle2, UserCog, Plus, Shield, ShieldCheck } from "lucide-react"
-import { DashboardChart } from "@/components/dashboard-chart"
-import { RecentActivities } from "@/components/recent-activities"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { getCurrentUser, isAdmin, isSuperAdmin, isAuthenticated, type User } from "@/lib/auth"
+import { FullScreenLoading, LoadingSpinner } from "@/components/ui/loading-spinner"
+
+// 懒加载重型组件
+const DashboardChart = lazy(() => import("@/components/dashboard-chart").then(mod => ({ default: mod.DashboardChart })))
+const RecentActivities = lazy(() => import("@/components/recent-activities").then(mod => ({ default: mod.RecentActivities })))
 
 export default function DashboardPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
     const initializeUser = async () => {
       try {
+        setIsLoading(true)
         // 首先检查是否已登录
         if (!isAuthenticated()) {
           router.push('/login')
@@ -41,22 +47,41 @@ export default function DashboardPage() {
         setCurrentUser(user)
       } catch (error) {
         console.error('获取用户信息失败:', error)
-        router.push('/login')
+        setError('加载用户信息失败，请刷新页面重试')
+        // 延迟后重定向，给用户看到错误信息的机会
+        setTimeout(() => {
+          router.push('/login')
+        }, 2000)
+      } finally {
+        setIsLoading(false)
       }
     }
 
     initializeUser()
   }, [router])
 
-  if (!currentUser) {
+  // 加载状态
+  if (isLoading) {
+    return <FullScreenLoading text="正在加载仪表盘..." />
+  }
+
+  // 错误状态
+  if (error) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">加载中...</p>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <div className="text-red-500 text-lg">{error}</div>
+          <Button onClick={() => window.location.reload()}>
+            重新加载
+          </Button>
         </div>
       </div>
     )
+  }
+
+  // 用户未加载完成
+  if (!currentUser) {
+    return <FullScreenLoading text="正在验证用户信息..." />
   }
 
   const getRoleDisplayName = (role: string) => {
@@ -196,7 +221,9 @@ export default function DashboardPage() {
                 <CardTitle className="text-base">对话统计</CardTitle>
               </CardHeader>
               <CardContent className="pl-2">
-                <DashboardChart />
+                <Suspense fallback={<LoadingSpinner text="加载图表中..." />}>
+                  <DashboardChart />
+                </Suspense>
               </CardContent>
             </Card>
 
@@ -205,7 +232,9 @@ export default function DashboardPage() {
                 <CardTitle className="text-base">最近活动</CardTitle>
               </CardHeader>
               <CardContent>
-                <RecentActivities />
+                <Suspense fallback={<LoadingSpinner size="sm" text="加载活动中..." />}>
+                  <RecentActivities />
+                </Suspense>
               </CardContent>
             </Card>
           </div>
