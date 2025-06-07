@@ -59,6 +59,7 @@ export default function Sidebar({ className }: SidebarProps) {
 
   const handleLogout = () => {
     logout()
+    router.push('/login')
   }
 
   // 根据用户角色定义不同的路由

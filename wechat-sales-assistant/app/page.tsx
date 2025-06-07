@@ -10,26 +10,42 @@ import { DashboardChart } from "@/components/dashboard-chart"
 import { RecentActivities } from "@/components/recent-activities"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { getCurrentUser, isAdmin, isSuperAdmin, type User } from "@/lib/auth"
+import { getCurrentUser, isAdmin, isSuperAdmin, isAuthenticated, type User } from "@/lib/auth"
 
 export default function DashboardPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const router = useRouter()
 
   useEffect(() => {
-    const user = getCurrentUser()
-    if (!user) {
-      router.push('/login')
-      return
+    const initializeUser = async () => {
+      try {
+        // 首先检查是否已登录
+        if (!isAuthenticated()) {
+          router.push('/login')
+          return
+        }
+
+        // 从API获取用户信息
+        const user = await getCurrentUser()
+        if (!user) {
+          router.push('/login')
+          return
+        }
+        
+        // 如果是普通用户，重定向到用户专用dashboard
+        if (user.role === 'user') {
+          router.push('/dashboard')
+          return
+        }
+        
+        setCurrentUser(user)
+      } catch (error) {
+        console.error('获取用户信息失败:', error)
+        router.push('/login')
+      }
     }
-    
-    // 如果是普通用户，重定向到用户专用dashboard
-    if (user.role === 'user') {
-      router.push('/dashboard')
-      return
-    }
-    
-    setCurrentUser(user)
+
+    initializeUser()
   }, [router])
 
   if (!currentUser) {
