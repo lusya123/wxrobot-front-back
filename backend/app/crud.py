@@ -1,70 +1,19 @@
-import uuid
-from typing import Any
-from datetime import datetime
+"""
+应用的CRUD操作
 
-from sqlmodel import Session, select, or_
+认证和用户相关的CRUD操作已迁移到:
+- modules.auth.service
+- modules.users.service
+"""
+from modules.auth.service import authenticate, verify_password, get_password_hash
+from modules.users.service import (
+    create_user, update_user, get_user_by_email, 
+    get_user_by_username, get_user_by_id, get_users, delete_user
+)
 
-from app.core.security import get_password_hash, verify_password
-from app.models import User, UserCreate, UserUpdate
-
-
-def create_user(*, session: Session, user_create: UserCreate) -> User:
-    db_obj = User.model_validate(
-        user_create, update={"hashed_password": get_password_hash(user_create.password)}
-    )
-    session.add(db_obj)
-    session.commit()
-    session.refresh(db_obj)
-    return db_obj
-
-
-def update_user(*, session: Session, db_user: User, user_in: UserUpdate) -> Any:
-    user_data = user_in.model_dump(exclude_unset=True)
-    extra_data = {}
-    if "password" in user_data:
-        password = user_data["password"]
-        hashed_password = get_password_hash(password)
-        extra_data["hashed_password"] = hashed_password
-    db_user.sqlmodel_update(user_data, update=extra_data)
-    session.add(db_user)
-    session.commit()
-    session.refresh(db_user)
-    return db_user
-
-
-def get_user_by_email(*, session: Session, email: str) -> User | None:
-    statement = select(User).where(User.email == email)
-    session_user = session.exec(statement).first()
-    return session_user
-
-
-def get_user_by_username(*, session: Session, username: str) -> User | None:
-    statement = select(User).where(User.username == username)
-    session_user = session.exec(statement).first()
-    return session_user
-
-
-def get_user_by_username_or_email(*, session: Session, username: str) -> User | None:
-    """根据用户名或邮箱获取用户"""
-    statement = select(User).where(
-        or_(User.username == username, User.email == username)
-    )
-    session_user = session.exec(statement).first()
-    return session_user
-
-
-def authenticate(*, session: Session, username: str, password: str) -> User | None:
-    """验证用户身份，支持用户名或邮箱登录"""
-    db_user = get_user_by_username_or_email(session=session, username=username)
-    if not db_user:
-        return None
-    if not verify_password(password, db_user.hashed_password):
-        return None
-    
-    # 更新最后登录时间
-    db_user.last_login_at = datetime.utcnow()
-    session.add(db_user)
-    session.commit()
-    session.refresh(db_user)
-    
-    return db_user
+# 导出所有函数，保持向后兼容
+__all__ = [
+    "authenticate", "verify_password", "get_password_hash",
+    "create_user", "update_user", "get_user_by_email",
+    "get_user_by_username", "get_user_by_id", "get_users", "delete_user"
+]

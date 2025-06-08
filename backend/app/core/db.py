@@ -33,3 +33,9 @@ def init_db(session: Session) -> None:
             full_name="超级管理员"
         )
         user = crud.create_user(session=session, user_create=user_in)
+
+
+def get_db():
+    """获取数据库会话"""
+    with Session(engine) as session:
+        yield session
