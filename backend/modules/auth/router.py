@@ -10,21 +10,22 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app.core.config import settings
 from app.models import UserPublic, User
-from app.utils import (
-    generate_password_reset_token,
-    generate_reset_password_email,
-    send_email,
-    verify_password_reset_token,
-)
+# 暂时注释掉邮件相关的导入
+# from app.utils import (
+#     generate_password_reset_token,
+#     generate_reset_password_email,
+#     send_email,
+#     verify_password_reset_token,
+# )
 from modules.auth.deps import SessionDep, CurrentUser, SuperUser
 from modules.auth.models import (
     UserLogin, UserRegister, Token, Message, NewPassword, UpdatePassword
 )
 from modules.auth.service import (
     authenticate, create_access_token, get_password_hash, 
-    verify_password, get_user_by_username_or_email
+    verify_password, get_user_by_username
 )
-from modules.users.service import get_user_by_email, create_user
+from modules.users.service import get_user_by_phone, create_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -127,11 +128,11 @@ def register(session: SessionDep, user_in: UserRegister) -> Any:
     用户注册接口
     - 无需登录即可创建新用户
     """
-    user = get_user_by_email(session=session, email=user_in.email)
+    user = get_user_by_phone(session=session, phone=user_in.phone)
     if user:
         raise HTTPException(
             status_code=400,
-            detail="The user with this email already exists in the system",
+            detail="The user with this phone already exists in the system",
         )
     
     from app.models import UserCreate
@@ -168,77 +169,32 @@ def update_password(
     return Message(message="Password updated successfully")
 
 
-@router.post("/password-recovery/{email}")
-def recover_password(email: str, session: SessionDep) -> Message:
-    """
-    密码恢复
-    - 发送密码重置邮件
-    """
-    user = get_user_by_email(session=session, email=email)
-
-    if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="The user with this email does not exist in the system.",
-        )
-    password_reset_token = generate_password_reset_token(email=email)
-    email_data = generate_reset_password_email(
-        email_to=user.email, email=email, token=password_reset_token
+@router.post("/password-recovery/{phone}")
+def recover_password(phone: str, session: SessionDep) -> Message:
+    # 密码恢复功能暂时禁用，因为需要短信服务
+    raise HTTPException(
+        status_code=501,
+        detail="Password recovery via SMS is not implemented yet"
     )
-    send_email(
-        email_to=user.email,
-        subject=email_data.subject,
-        html_content=email_data.html_content,
-    )
-    return Message(message="Password recovery email sent")
 
 
 @router.post("/reset-password/")
 def reset_password(session: SessionDep, body: NewPassword) -> Message:
-    """
-    重置密码
-    - 使用重置令牌设置新密码
-    """
-    email = verify_password_reset_token(token=body.token)
-    if not email:
-        raise HTTPException(status_code=400, detail="Invalid token")
-    user = get_user_by_email(session=session, email=email)
-    if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="The user with this email does not exist in the system.",
-        )
-    elif not user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
-    hashed_password = get_password_hash(password=body.new_password)
-    user.hashed_password = hashed_password
-    session.add(user)
-    session.commit()
-    return Message(message="Password updated successfully")
+    # 密码重置功能暂时禁用，因为需要短信验证
+    raise HTTPException(
+        status_code=501,
+        detail="Password reset via SMS is not implemented yet"
+    )
 
 
 @router.post(
-    "/password-recovery-html-content/{email}",
+    "/password-recovery-html-content/{phone}",
     dependencies=[Depends(SuperUser)],
     response_class=HTMLResponse,
 )
-def recover_password_html_content(email: str, session: SessionDep) -> Any:
-    """
-    密码恢复HTML内容
-    - 仅超级管理员可访问
-    """
-    user = get_user_by_email(session=session, email=email)
-
-    if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="The user with this username does not exist in the system.",
-        )
-    password_reset_token = generate_password_reset_token(email=email)
-    email_data = generate_reset_password_email(
-        email_to=user.email, email=email, token=password_reset_token
-    )
-
-    return HTMLResponse(
-        content=email_data.html_content, headers={"subject:": email_data.subject}
+def recover_password_html_content(phone: str, session: SessionDep) -> Any:
+    # 密码恢复HTML内容暂时禁用
+    raise HTTPException(
+        status_code=501,
+        detail="Password recovery via SMS is not implemented yet"
     ) 

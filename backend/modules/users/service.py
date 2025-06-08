@@ -34,9 +34,12 @@ def update_user(*, session: Session, db_user: User, user_in: UserUpdate) -> Any:
     return db_user
 
 
-def get_user_by_email(*, session: Session, email: str) -> User | None:
-    """根据邮箱获取用户"""
-    statement = select(User).where(User.email == email)
+
+
+
+def get_user_by_phone(*, session: Session, phone: str) -> User | None:
+    """根据手机号获取用户"""
+    statement = select(User).where(User.phone == phone)
     session_user = session.exec(statement).first()
     return session_user
 

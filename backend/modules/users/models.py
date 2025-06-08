@@ -4,7 +4,7 @@
 import uuid
 from datetime import datetime
 from enum import Enum
-from pydantic import EmailStr, Field, BaseModel
+from pydantic import Field, BaseModel, field_validator
 from sqlmodel import Field as SQLField, Relationship, SQLModel, Column
 from sqlalchemy import Enum as SQLAlchemyEnum
 
@@ -20,12 +20,25 @@ class UserRole(str, Enum):
 class UserBase(SQLModel):
     """用户基础模型"""
     username: str = SQLField(unique=True, index=True, max_length=50)
-    email: EmailStr = SQLField(unique=True, index=True, max_length=100)
+    phone: str = SQLField(unique=True, index=True, max_length=20)
     role: UserRole = UserRole.USER
     is_active: bool = True
     full_name: str | None = SQLField(default=None, max_length=100)
-    phone: str | None = SQLField(default=None, max_length=20)
     avatar_url: str | None = SQLField(default=None, max_length=500)
+    
+    @field_validator('phone')
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        """验证手机号格式"""
+        if not v:
+            raise ValueError('手机号不能为空')
+        # 允许临时手机号（以1000开头的）
+        if v.startswith('1000'):
+            return v
+        # 标准的中国手机号验证
+        if not v.startswith('1') or len(v) != 11 or not v.isdigit():
+            raise ValueError('请输入有效的手机号码')
+        return v
 
 
 # 创建用户请求模型
@@ -38,7 +51,7 @@ class UserCreate(UserBase):
 class UserUpdate(UserBase):
     """更新用户请求模型"""
     username: str | None = Field(default=None, max_length=50)
-    email: EmailStr | None = Field(default=None, max_length=100)
+    phone: str | None = Field(default=None, max_length=20)
     password: str | None = Field(default=None, min_length=8, max_length=40)
     role: UserRole | None = None
     is_active: bool | None = None
@@ -48,7 +61,6 @@ class UserUpdate(UserBase):
 class UserUpdateMe(SQLModel):
     """更新当前用户信息请求模型"""
     full_name: str | None = Field(default=None, max_length=100)
-    email: EmailStr | None = Field(default=None, max_length=100)
     phone: str | None = Field(default=None, max_length=20)
     avatar_url: str | None = Field(default=None, max_length=500)
 

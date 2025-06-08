@@ -56,7 +56,7 @@ import { toast } from "sonner"
 
 interface CreateUserForm {
   username: string
-  email: string
+  phone: string
   password: string
   role: UserRole
   full_name?: string
@@ -64,7 +64,7 @@ interface CreateUserForm {
 
 interface EditUserForm {
   username: string
-  email: string
+  phone: string
   role: UserRole
   is_active: boolean
   full_name?: string
@@ -90,7 +90,7 @@ export default function UserManagementPage() {
   // 表单状态
   const [createForm, setCreateForm] = useState<CreateUserForm>({
     username: '',
-    email: '',
+    phone: '',
     password: '',
     role: 'user',
     full_name: ''
@@ -98,7 +98,7 @@ export default function UserManagementPage() {
   
   const [editForm, setEditForm] = useState<EditUserForm>({
     username: '',
-    email: '',
+    phone: '',
     role: 'user',
     is_active: true,
     full_name: ''
@@ -151,7 +151,7 @@ export default function UserManagementPage() {
     if (searchTerm) {
       const filtered = users.filter(user =>
         user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+        (user.full_name && user.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
       )
       setFilteredUsers(filtered)
     } else {
@@ -167,7 +167,7 @@ export default function UserManagementPage() {
     
     const testUserData = {
       username: `test_${Date.now()}`,
-      email: `test_${Date.now()}@example.com`,
+      phone: `138${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`,
       password: 'password123',
       role: 'user' as UserRole,
       full_name: '测试用户'
@@ -189,7 +189,7 @@ export default function UserManagementPage() {
   // 创建用户
   const handleCreateUser = async () => {
     // 基本字段验证
-    if (!createForm.username || !createForm.email || !createForm.password) {
+    if (!createForm.username || !createForm.phone || !createForm.password) {
       toast.error('请填写所有必填字段')
       return
     }
@@ -200,10 +200,10 @@ export default function UserManagementPage() {
       return
     }
 
-    // 邮箱格式验证
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(createForm.email)) {
-      toast.error('请输入有效的邮箱地址')
+    // 手机号格式验证
+    const phoneRegex = /^1[3-9]\d{9}$/
+    if (!phoneRegex.test(createForm.phone)) {
+      toast.error('请输入有效的手机号码')
       return
     }
 
@@ -225,7 +225,7 @@ export default function UserManagementPage() {
       // 清理和格式化数据
       const userData: CreateUserRequest = {
         username: createForm.username.trim(),
-        email: createForm.email.trim().toLowerCase(),
+        phone: createForm.phone.trim(),
         password: createForm.password,
         role: createForm.role,
         full_name: createForm.full_name?.trim() || undefined
@@ -242,7 +242,7 @@ export default function UserManagementPage() {
       // 重置表单并关闭对话框
       setCreateForm({
         username: '',
-        email: '',
+        phone: '',
         password: '',
         role: 'user',
         full_name: ''
@@ -256,15 +256,22 @@ export default function UserManagementPage() {
 
   // 更新用户
   const handleUpdateUser = async () => {
-    if (!editForm.username || !editForm.email) {
+    if (!editForm.username || !editForm.phone) {
       toast.error('请填写所有必填字段')
+      return
+    }
+
+    // 手机号格式验证
+    const phoneRegex = /^1[3-9]\d{9}$/
+    if (!phoneRegex.test(editForm.phone)) {
+      toast.error('请输入有效的手机号码')
       return
     }
 
     try {
       const userData: UpdateUserRequest = {
         username: editForm.username,
-        email: editForm.email,
+        phone: editForm.phone,
         role: editForm.role,
         is_active: editForm.is_active,
         full_name: editForm.full_name || undefined
@@ -357,7 +364,7 @@ export default function UserManagementPage() {
     setSelectedUserId(user.id)
     setEditForm({
       username: user.username,
-      email: user.email,
+      phone: user.phone || '',
       role: user.role,
       is_active: user.is_active,
       full_name: user.full_name || ''
@@ -468,13 +475,12 @@ export default function UserManagementPage() {
               </div>
               
               <div className="grid gap-2">
-                <Label htmlFor="email">邮箱</Label>
+                <Label htmlFor="phone">手机号码</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  value={createForm.email}
-                  onChange={(e) => setCreateForm(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="请输入邮箱地址"
+                  id="phone"
+                  value={createForm.phone}
+                  onChange={(e) => setCreateForm(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="请输入手机号码"
                 />
               </div>
               
@@ -554,13 +560,12 @@ export default function UserManagementPage() {
             </div>
             
             <div className="grid gap-2">
-              <Label htmlFor="edit_email">邮箱</Label>
+              <Label htmlFor="edit_phone">手机号码</Label>
               <Input
-                id="edit_email"
-                type="email"
-                value={editForm.email}
-                onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
-                placeholder="请输入邮箱地址"
+                id="edit_phone"
+                value={editForm.phone}
+                onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="请输入手机号码"
               />
             </div>
             
@@ -671,7 +676,7 @@ export default function UserManagementPage() {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="搜索用户名或邮箱..."
+                placeholder="搜索用户名或姓名..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -689,7 +694,7 @@ export default function UserManagementPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>用户名</TableHead>
-                  <TableHead>邮箱</TableHead>
+                  <TableHead>手机号码</TableHead>
                   <TableHead>姓名</TableHead>
                   <TableHead>角色</TableHead>
                   <TableHead>状态</TableHead>
@@ -708,7 +713,7 @@ export default function UserManagementPage() {
                   filteredUsers.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.username}</TableCell>
-                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.phone}</TableCell>
                       <TableCell>{user.full_name || '-'}</TableCell>
                       <TableCell>{getRoleBadge(user.role)}</TableCell>
                       <TableCell>

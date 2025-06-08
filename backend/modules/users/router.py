@@ -16,7 +16,7 @@ from modules.users.models import (
     UserUpdate, UserUpdateMe, AdminResetPassword
 )
 from modules.users.service import (
-    create_user, get_user_by_email, get_users, get_user_by_id,
+    create_user, get_user_by_phone, get_users, get_user_by_id,
     update_user, delete_user, check_user_permissions
 )
 
@@ -73,12 +73,12 @@ def create_user_endpoint(
             detail="Only super admin can create admin or super admin users.",
         )
     
-    # 检查邮箱是否已存在
-    user = get_user_by_email(session=session, email=user_in.email)
+    # 检查手机号是否已存在
+    user = get_user_by_phone(session=session, phone=user_in.phone)
     if user:
         raise HTTPException(
             status_code=400,
-            detail="The user with this email already exists in the system.",
+            detail="The user with this phone number already exists in the system.",
         )
 
     # 设置创建者ID
@@ -89,15 +89,15 @@ def create_user_endpoint(
     user = create_user(session=session, user_create=UserCreate(**user_in_dict))
     
     # 发送欢迎邮件
-    if settings.emails_enabled and user_in.email:
-        email_data = generate_new_account_email(
-            email_to=user_in.email, username=user_in.email, password=user_in.password
-        )
-        send_email(
-            email_to=user_in.email,
-            subject=email_data.subject,
-            html_content=email_data.html_content,
-        )
+    # if settings.emails_enabled and user_in.email:
+    #     email_data = generate_new_account_email(
+    #         email_to=user_in.email, username=user_in.email, password=user_in.password
+    #     )
+    #     send_email(
+    #         email_to=user_in.email,
+    #         subject=email_data.subject,
+    #         html_content=email_data.html_content,
+    #     )
     
     return user
 
@@ -120,11 +120,11 @@ def update_user_me(
     """
     更新当前用户信息
     """
-    if user_in.email:
-        existing_user = get_user_by_email(session=session, email=user_in.email)
+    if user_in.phone:
+        existing_user = get_user_by_phone(session=session, phone=user_in.phone)
         if existing_user and existing_user.id != current_user.id:
             raise HTTPException(
-                status_code=409, detail="User with this email already exists"
+                status_code=409, detail="User with this phone number already exists"
             )
     
     user_data = user_in.model_dump(exclude_unset=True)
@@ -223,12 +223,12 @@ def update_user_endpoint(
                 detail="Only super admin can set admin or super admin roles",
             )
     
-    # 检查邮箱是否已存在
-    if user_in.email:
-        existing_user = get_user_by_email(session=session, email=user_in.email)
+    # 检查手机号是否已存在
+    if user_in.phone:
+        existing_user = get_user_by_phone(session=session, phone=user_in.phone)
         if existing_user and existing_user.id != user_id:
             raise HTTPException(
-                status_code=409, detail="User with this email already exists"
+                status_code=409, detail="User with this phone number already exists"
             )
 
     # 更新用户

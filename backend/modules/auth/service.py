@@ -41,18 +41,16 @@ def create_access_token(subject: str | Any, expires_delta: timedelta) -> str:
     return encoded_jwt
 
 
-def get_user_by_username_or_email(*, session: Session, username: str) -> User | None:
-    """根据用户名或邮箱获取用户"""
-    statement = select(User).where(
-        or_(User.username == username, User.email == username)
-    )
+def get_user_by_username(*, session: Session, username: str) -> User | None:
+    """根据用户名获取用户"""
+    statement = select(User).where(User.username == username)
     session_user = session.exec(statement).first()
     return session_user
 
 
 def authenticate(*, session: Session, username: str, password: str) -> User | None:
-    """验证用户身份，支持用户名或邮箱登录"""
-    db_user = get_user_by_username_or_email(session=session, username=username)
+    """验证用户身份，支持用户名登录"""
+    db_user = get_user_by_username(session=session, username=username)
     if not db_user:
         return None
     if not verify_password(password, db_user.hashed_password):

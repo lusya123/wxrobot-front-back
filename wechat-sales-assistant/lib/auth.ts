@@ -9,10 +9,9 @@ export type UserRole = 'super_admin' | 'admin' | 'user'
 export interface User {
   id: string
   username: string
-  email: string
+  phone: string
   role: UserRole
   full_name?: string
-  phone?: string
   avatar_url?: string
   is_active: boolean
   created_at: string

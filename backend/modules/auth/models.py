@@ -16,7 +16,7 @@ class UserLogin(SQLModel):
 class UserRegister(SQLModel):
     """用户注册请求模型"""
     username: str = Field(max_length=50)
-    email: EmailStr = Field(max_length=100)
+    phone: str = Field(max_length=20)
     password: str = Field(min_length=8, max_length=40)
     full_name: str | None = Field(default=None, max_length=100)
 

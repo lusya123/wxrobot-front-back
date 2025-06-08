@@ -4,21 +4,19 @@ import { getAuthHeaders, handleApiResponse, type ApiResponse, type User, type Us
 // 用户相关接口
 export interface CreateUserRequest {
   username: string
-  email: string
+  phone: string
   password: string
   role: UserRole
   full_name?: string
-  phone?: string
 }
 
 export interface UpdateUserRequest {
   username?: string
-  email?: string
+  phone?: string
   password?: string
   role?: UserRole
   is_active?: boolean
   full_name?: string
-  phone?: string
 }
 
 export interface UsersListResponse {
