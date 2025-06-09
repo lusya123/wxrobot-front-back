@@ -25,6 +25,7 @@ class UserBase(SQLModel):
     is_active: bool = True
     full_name: str | None = SQLField(default=None, max_length=100)
     avatar_url: str | None = SQLField(default=None, max_length=500)
+    max_bot_count: int = SQLField(default=1)  # 可创建的最大机器人数量，默认为1
     
     @field_validator('phone')
     @classmethod
@@ -55,6 +56,7 @@ class UserUpdate(UserBase):
     password: str | None = Field(default=None, min_length=8, max_length=40)
     role: UserRole | None = None
     is_active: bool | None = None
+    max_bot_count: int | None = None  # 允许更新最大机器人数量
 
 
 # 更新当前用户信息模型

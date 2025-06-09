@@ -8,6 +8,7 @@ export interface CreateUserRequest {
   password: string
   role: UserRole
   full_name?: string
+  max_bot_count?: number
 }
 
 export interface UpdateUserRequest {
@@ -17,6 +18,7 @@ export interface UpdateUserRequest {
   role?: UserRole
   is_active?: boolean
   full_name?: string
+  max_bot_count?: number
 }
 
 export interface UsersListResponse {

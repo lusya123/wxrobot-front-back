@@ -60,6 +60,7 @@ interface CreateUserForm {
   password: string
   role: UserRole
   full_name?: string
+  max_bot_count: number
 }
 
 interface EditUserForm {
@@ -68,6 +69,7 @@ interface EditUserForm {
   role: UserRole
   is_active: boolean
   full_name?: string
+  max_bot_count: number
 }
 
 interface ResetPasswordForm {
@@ -93,7 +95,8 @@ export default function UserManagementPage() {
     phone: '',
     password: '',
     role: 'user',
-    full_name: ''
+    full_name: '',
+    max_bot_count: 1
   })
   
   const [editForm, setEditForm] = useState<EditUserForm>({
@@ -101,7 +104,8 @@ export default function UserManagementPage() {
     phone: '',
     role: 'user',
     is_active: true,
-    full_name: ''
+    full_name: '',
+    max_bot_count: 1
   })
   
   const [resetPasswordForm, setResetPasswordForm] = useState<ResetPasswordForm>({
@@ -170,7 +174,8 @@ export default function UserManagementPage() {
       phone: `138${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`,
       password: 'password123',
       role: 'user' as UserRole,
-      full_name: '测试用户'
+      full_name: '测试用户',
+      max_bot_count: 1
     }
     
     console.log('测试用户数据:', testUserData)
@@ -228,7 +233,8 @@ export default function UserManagementPage() {
         phone: createForm.phone.trim(),
         password: createForm.password,
         role: createForm.role,
-        full_name: createForm.full_name?.trim() || undefined
+        full_name: createForm.full_name?.trim() || undefined,
+        max_bot_count: createForm.max_bot_count
       }
 
       console.log('即将创建用户，数据:', userData)
@@ -245,7 +251,8 @@ export default function UserManagementPage() {
         phone: '',
         password: '',
         role: 'user',
-        full_name: ''
+        full_name: '',
+        max_bot_count: 1
       })
       setIsCreateDialogOpen(false)
     } catch (error) {
@@ -274,7 +281,8 @@ export default function UserManagementPage() {
         phone: editForm.phone,
         role: editForm.role,
         is_active: editForm.is_active,
-        full_name: editForm.full_name || undefined
+        full_name: editForm.full_name || undefined,
+        max_bot_count: editForm.max_bot_count
       }
 
       await userApi.update(selectedUserId, userData)
@@ -367,7 +375,8 @@ export default function UserManagementPage() {
       phone: user.phone || '',
       role: user.role,
       is_active: user.is_active,
-      full_name: user.full_name || ''
+      full_name: user.full_name || '',
+      max_bot_count: user.max_bot_count || 1
     })
     setIsEditDialogOpen(true)
   }
@@ -523,6 +532,19 @@ export default function UserManagementPage() {
                   </SelectContent>
                 </Select>
               </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="max_bot_count">最大机器人数量</Label>
+                <Input
+                  id="max_bot_count"
+                  type="number"
+                  min="0"
+                  value={createForm.max_bot_count}
+                  onChange={(e) => setCreateForm(prev => ({ ...prev, max_bot_count: parseInt(e.target.value) || 1 }))}
+                  placeholder="可创建的最大机器人数量"
+                />
+                <p className="text-sm text-muted-foreground">限制该用户可以创建的微信机器人数量</p>
+              </div>
             </div>
             
             <DialogFooter>
@@ -607,6 +629,19 @@ export default function UserManagementPage() {
                 className="rounded"
               />
               <Label htmlFor="edit_is_active">账户激活状态</Label>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="edit_max_bot_count">最大机器人数量</Label>
+              <Input
+                id="edit_max_bot_count"
+                type="number"
+                min="0"
+                value={editForm.max_bot_count}
+                onChange={(e) => setEditForm(prev => ({ ...prev, max_bot_count: parseInt(e.target.value) || 1 }))}
+                placeholder="可创建的最大机器人数量"
+              />
+              <p className="text-sm text-muted-foreground">限制该用户可以创建的微信机器人数量</p>
             </div>
           </div>
           
@@ -697,6 +732,7 @@ export default function UserManagementPage() {
                   <TableHead>手机号码</TableHead>
                   <TableHead>姓名</TableHead>
                   <TableHead>角色</TableHead>
+                  <TableHead>机器人限制</TableHead>
                   <TableHead>状态</TableHead>
                   <TableHead>创建时间</TableHead>
                   <TableHead>操作</TableHead>
@@ -705,7 +741,7 @@ export default function UserManagementPage() {
               <TableBody>
                 {filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       暂无用户数据
                     </TableCell>
                   </TableRow>
@@ -716,6 +752,11 @@ export default function UserManagementPage() {
                       <TableCell>{user.phone}</TableCell>
                       <TableCell>{user.full_name || '-'}</TableCell>
                       <TableCell>{getRoleBadge(user.role)}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {user.max_bot_count || 1} 个
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         {user.is_active ? (
                           <Badge className="bg-green-100 text-green-800 hover:bg-green-200">

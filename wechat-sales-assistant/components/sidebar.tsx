@@ -186,7 +186,7 @@ export default function Sidebar({ className }: SidebarProps) {
             <div className="flex space-x-1">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full relative">
                     <BellRing className="h-4 w-4" />
                     <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] text-white flex items-center justify-center">
                       3

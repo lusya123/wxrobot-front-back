@@ -1,3 +1,7 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -16,6 +20,7 @@ import {
   MessageSquare,
   MoreHorizontal,
   AlertCircle,
+  Loader2,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -25,8 +30,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { useToast } from "@/components/ui/use-toast"
+import { wechatAccountApi, type WechatBot, type BotStatus } from "@/lib/wechat-accounts-api"
+import { isAuthenticated } from "@/lib/auth"
 
-const wechatAccounts = [
+const wechatAccountsStatic = [
   {
     id: 1,
     name: "销售助手1号",
@@ -62,18 +78,157 @@ const wechatAccounts = [
   },
 ]
 
-const getStatusBadge = (status: string) => {
+const getStatusBadge = (status: BotStatus) => {
   switch (status) {
-    case "online":
+    case "logged_in":
       return <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-0">在线</Badge>
-    case "offline":
+    case "logged_out":
       return <Badge className="bg-gray-100 text-gray-700 hover:bg-gray-200 border-0">离线</Badge>
+    case "scanning":
+      return <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-0">扫码中</Badge>
+    case "error":
+      return <Badge className="bg-red-50 text-red-700 hover:bg-red-100 border-0">异常</Badge>
     default:
       return <Badge>{status}</Badge>
   }
 }
 
 export default function WechatAccountsPage() {
+  const router = useRouter()
+  const { toast } = useToast()
+  const [wechatAccounts, setWechatAccounts] = useState<WechatBot[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loginDialog, setLoginDialog] = useState(false)
+  const [loginBotId, setLoginBotId] = useState<number | null>(null)
+  const [loginQrcode, setLoginQrcode] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState<number | null>(null)
+
+  // 检查认证状态
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.push('/login')
+      toast({
+        title: "需要登录",
+        description: "请先登录系统",
+        variant: "destructive",
+      })
+    }
+  }, [router, toast])
+
+  // 加载机器人列表
+  const loadBots = async () => {
+    try {
+      const response = await wechatAccountApi.list()
+      if (response.error === 0 && response.body) {
+        setWechatAccounts(response.body.data)
+      }
+    } catch (error) {
+      console.error('Failed to load wechat accounts:', error)
+      toast({
+        title: "加载失败",
+        description: error instanceof Error ? error.message : "加载机器人列表失败",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    // 只有在已认证的情况下才加载数据
+    if (isAuthenticated()) {
+      loadBots()
+    }
+  }, [])
+
+  // 处理登录
+  const handleLogin = async (botId: number) => {
+    try {
+      setLoginBotId(botId)
+      setLoginDialog(true)
+      const response = await wechatAccountApi.login(botId)
+      setLoginQrcode(response.qrcode)
+      
+      // TODO: 使用 WebSocket 或轮询检查登录状态
+      // 这里暂时模拟登录成功
+      setTimeout(() => {
+        setLoginDialog(false)
+        setLoginQrcode(null)
+        setLoginBotId(null)
+        loadBots() // 刷新列表
+        toast({
+          title: "登录成功",
+          description: "机器人已成功登录",
+        })
+      }, 5000)
+    } catch (error) {
+      console.error('Failed to login bot:', error)
+      toast({
+        title: "登录失败",
+        description: error instanceof Error ? error.message : "登录机器人失败",
+        variant: "destructive",
+      })
+      setLoginDialog(false)
+    }
+  }
+
+  // 处理登出
+  const handleLogout = async (botId: number) => {
+    try {
+      await wechatAccountApi.logout(botId)
+      await loadBots()
+      toast({
+        title: "登出成功",
+        description: "机器人已成功登出",
+      })
+    } catch (error) {
+      console.error('Failed to logout bot:', error)
+      toast({
+        title: "登出失败",
+        description: error instanceof Error ? error.message : "登出机器人失败",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // 处理刷新状态
+  const handleRefresh = async (botId: number) => {
+    setRefreshing(botId)
+    await loadBots()
+    setTimeout(() => setRefreshing(null), 500)
+  }
+
+  // 处理删除
+  const handleDelete = async (botId: number) => {
+    if (!confirm("确定要删除这个机器人吗？此操作不可撤销。")) {
+      return
+    }
+    
+    try {
+      await wechatAccountApi.delete(botId)
+      await loadBots()
+      toast({
+        title: "删除成功",
+        description: "机器人已成功删除",
+      })
+    } catch (error) {
+      console.error('Failed to delete bot:', error)
+      toast({
+        title: "删除失败",
+        description: error instanceof Error ? error.message : "删除机器人失败",
+        variant: "destructive",
+      })
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    )
+  }
+
   return (
     <div className="p-8 space-y-6 dashboard-gradient">
       <div className="flex items-center justify-between">
@@ -81,7 +236,7 @@ export default function WechatAccountsPage() {
           <h2 className="text-3xl font-bold tracking-tight">微信账号管理</h2>
           <p className="text-muted-foreground">管理您的销售助手微信账号</p>
         </div>
-        <Button>
+        <Button onClick={() => router.push("/wechat-accounts/new")}>
           <Plus className="h-4 w-4 mr-2" />
           添加微信账号
         </Button>
@@ -90,7 +245,6 @@ export default function WechatAccountsPage() {
       <Tabs defaultValue="accounts" className="space-y-4">
         <TabsList className="bg-background/60 backdrop-blur-sm">
           <TabsTrigger value="accounts">账号管理</TabsTrigger>
-          <TabsTrigger value="settings">全局设置</TabsTrigger>
           <TabsTrigger value="logs">操作日志</TabsTrigger>
         </TabsList>
 
@@ -109,7 +263,17 @@ export default function WechatAccountsPage() {
                         <CardTitle className="text-lg">{account.name}</CardTitle>
                         <div className="flex items-center mt-1">
                           {getStatusBadge(account.status)}
-                          <span className="text-xs text-muted-foreground ml-2">{account.lastActive}</span>
+                          {account.owner_name && (
+                            <span className="text-xs text-muted-foreground ml-2">
+                              负责人: {account.owner_name}
+                              {account.creator_type === 'subordinate' && (
+                                <span className="text-blue-600 ml-1">(您创建的用户)</span>
+                              )}
+                              {account.creator_type === 'self' && (
+                                <span className="text-green-600 ml-1">(您创建)</span>
+                              )}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -122,22 +286,32 @@ export default function WechatAccountsPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>账号操作</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => router.push(`/wechat-accounts/edit/${account.id}`)}>
                           <Settings className="h-4 w-4 mr-2" />
                           账号设置
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <RefreshCw className="h-4 w-4 mr-2" />
+                        <DropdownMenuItem onClick={() => handleRefresh(account.id)}>
+                          <RefreshCw className={`h-4 w-4 mr-2 ${refreshing === account.id ? 'animate-spin' : ''}`} />
                           刷新状态
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <QrCode className="h-4 w-4 mr-2" />
-                          重新登录
-                        </DropdownMenuItem>
+                        {account.status === "logged_out" ? (
+                          <DropdownMenuItem onClick={() => handleLogin(account.id)}>
+                            <QrCode className="h-4 w-4 mr-2" />
+                            登录账号
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem onClick={() => handleLogout(account.id)}>
+                            <AlertCircle className="h-4 w-4 mr-2" />
+                            登出账号
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600">
+                        <DropdownMenuItem 
+                          className="text-red-600"
+                          onClick={() => handleDelete(account.id)}
+                        >
                           <AlertCircle className="h-4 w-4 mr-2" />
-                          停用账号
+                          删除账号
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -145,45 +319,31 @@ export default function WechatAccountsPage() {
                 </CardHeader>
 
                 <CardContent>
-                  <div className="grid grid-cols-3 gap-2 mt-2 text-center">
-                    <div className="bg-muted/50 p-2 rounded-lg">
-                      <div className="flex flex-col items-center">
-                        <Users className="h-4 w-4 mb-1 text-muted-foreground" />
-                        <span className="text-lg font-semibold">{account.friendsCount}</span>
-                        <span className="text-xs text-muted-foreground">好友</span>
+                  <div className="space-y-2 mt-4">
+                    {account.wxid && (
+                      <div className="text-sm text-muted-foreground">
+                        微信号: {account.wxid}
                       </div>
+                    )}
+                    <div className="text-sm text-muted-foreground">
+                      创建时间: {new Date(account.created_at).toLocaleDateString()}
                     </div>
-                    <div className="bg-muted/50 p-2 rounded-lg">
-                      <div className="flex flex-col items-center">
-                        <Users className="h-4 w-4 mb-1 text-muted-foreground" />
-                        <span className="text-lg font-semibold">{account.groupsCount}</span>
-                        <span className="text-xs text-muted-foreground">群聊</span>
-                      </div>
-                    </div>
-                    <div className="bg-muted/50 p-2 rounded-lg">
-                      <div className="flex flex-col items-center">
-                        <MessageSquare className="h-4 w-4 mb-1 text-muted-foreground" />
-                        <span className="text-lg font-semibold">{account.messagesCount}</span>
-                        <span className="text-xs text-muted-foreground">消息</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="flex items-center space-x-2">
-                      <Smartphone className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">自动回复</span>
-                    </div>
-                    <Switch checked={account.autoReply} />
                   </div>
                 </CardContent>
 
                 <CardFooter className="flex justify-between pt-2">
-                  <Button variant="outline" size="sm">
-                    <Users className="h-4 w-4 mr-2" />
-                    好友管理
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => router.push(`/wechat-accounts/edit/${account.id}`)}
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    配置管理
                   </Button>
-                  <Button size="sm">
+                  <Button 
+                    size="sm"
+                    disabled={account.status !== "logged_in"}
+                  >
                     <MessageSquare className="h-4 w-4 mr-2" />
                     查看对话
                   </Button>
@@ -191,7 +351,10 @@ export default function WechatAccountsPage() {
               </Card>
             ))}
 
-            <Card className="border-dashed flex flex-col items-center justify-center p-6 h-[300px]">
+            <Card 
+              className="border-dashed flex flex-col items-center justify-center p-6 h-[300px] cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={() => router.push("/wechat-accounts/new")}
+            >
               <div className="rounded-full bg-muted/50 p-4 mb-4">
                 <Plus className="h-6 w-6 text-muted-foreground" />
               </div>
@@ -204,76 +367,33 @@ export default function WechatAccountsPage() {
             </Card>
           </div>
         </TabsContent>
-
-        <TabsContent value="settings">
-          <Card>
-            <CardHeader>
-              <CardTitle>微信账号全局设置</CardTitle>
-              <CardDescription>配置适用于所有微信账号的通用设置</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">自动化设置</h3>
-                <div className="grid gap-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="auto-accept">自动通过好友请求</Label>
-                      <p className="text-sm text-muted-foreground">自动接受新的好友请求</p>
-                    </div>
-                    <Switch id="auto-accept" defaultChecked />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="auto-group">自动创建客户服务群</Label>
-                      <p className="text-sm text-muted-foreground">根据设定条件自动创建和管理客户服务群</p>
-                    </div>
-                    <Switch id="auto-group" defaultChecked />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="auto-reply">离线自动回复</Label>
-                      <p className="text-sm text-muted-foreground">账号离线时自动回复消息</p>
-                    </div>
-                    <Switch id="auto-reply" defaultChecked />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">消息模板</h3>
-                <div className="space-y-2">
-                  <Label htmlFor="welcome-message">欢迎语</Label>
-                  <Input
-                    id="welcome-message"
-                    defaultValue="您好！我是智能销售助手，很高兴为您服务。请问有什么可以帮助您的吗？"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="offline-message">离线消息</Label>
-                  <Input
-                    id="offline-message"
-                    defaultValue="您好，我暂时不在线，稍后会回复您的消息。如有紧急事项，请联系我们的客服热线。"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="group-welcome">群欢迎语</Label>
-                  <Input
-                    id="group-welcome"
-                    defaultValue="欢迎加入我们的客户服务群，有任何问题都可以在群里提出，我们会尽快为您解答。"
-                  />
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-end">
-              <Button>保存设置</Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
       </Tabs>
+
+      {/* 登录二维码对话框 */}
+      <Dialog open={loginDialog} onOpenChange={setLoginDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>扫码登录微信</DialogTitle>
+            <DialogDescription>
+              请使用微信扫描下方二维码登录机器人账号
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center py-8">
+            {loginQrcode ? (
+              <img src={loginQrcode} alt="Login QR Code" className="w-64 h-64" />
+            ) : (
+              <div className="w-64 h-64 bg-muted rounded flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLoginDialog(false)}>
+              取消
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

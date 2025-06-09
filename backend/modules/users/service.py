@@ -2,10 +2,14 @@
 用户管理服务层 - 处理用户相关的业务逻辑
 """
 from typing import Any
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select, func, delete
 
 from modules.auth.service import get_password_hash
 from modules.users.models import User, UserCreate, UserUpdate, UserRole
+from modules.wechat_accounts.models import (
+    WechatBot, BotConfig, BotMonitoredChat, BotKnowledgeBase, 
+    BotAlertRecipient, BotEscalationRecipient
+)
 
 
 def create_user(*, session: Session, user_create: UserCreate) -> User:
@@ -95,7 +99,23 @@ def get_users(
 
 
 def delete_user(*, session: Session, user: User) -> None:
-    """删除用户"""
+    """删除用户, 并级联删除其创建的所有微信机器人及其关联数据."""
+    # 1. 查找该用户拥有的所有机器人
+    user_bots = session.exec(select(WechatBot).where(WechatBot.owner_id == user.id)).all()
+    bot_ids = [bot.id for bot in user_bots]
+
+    if bot_ids:
+        # 2. 删除所有与这些机器人相关的配置数据
+        session.exec(delete(BotConfig).where(BotConfig.bot_id.in_(bot_ids)))
+        session.exec(delete(BotMonitoredChat).where(BotMonitoredChat.bot_id.in_(bot_ids)))
+        session.exec(delete(BotKnowledgeBase).where(BotKnowledgeBase.bot_id.in_(bot_ids)))
+        session.exec(delete(BotAlertRecipient).where(BotAlertRecipient.bot_id.in_(bot_ids)))
+        session.exec(delete(BotEscalationRecipient).where(BotEscalationRecipient.bot_id.in_(bot_ids)))
+
+        # 3. 删除机器人本身
+        session.exec(delete(WechatBot).where(WechatBot.owner_id == user.id))
+    
+    # 4. 最后删除用户
     session.delete(user)
     session.commit()
 

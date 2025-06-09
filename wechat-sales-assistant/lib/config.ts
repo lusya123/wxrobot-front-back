@@ -22,6 +22,9 @@ export const API_CONFIG = {
     USERS: '/api/v1/users',
     USER_ME: '/api/v1/users/me',
     
+    // 微信账号相关
+    WECHAT_ACCOUNTS: '/api/v1/wechat-accounts',
+    
     // 其他端点可以在这里添加
   }
 };

@@ -14,6 +14,7 @@ export interface User {
   full_name?: string
   avatar_url?: string
   is_active: boolean
+  max_bot_count: number
   created_at: string
   updated_at: string
   last_login_at?: string
