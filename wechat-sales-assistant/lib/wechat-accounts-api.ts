@@ -63,6 +63,7 @@ export interface BotConfig {
   listen_mode_group_chat: ListenModeGroup
   reply_trigger_on_mention: boolean
   reply_trigger_words?: string
+  wake_words?: string  // 唤醒词，多个词用英文逗号分隔
   welcome_new_group_member: boolean
   new_member_welcome_message?: string
   

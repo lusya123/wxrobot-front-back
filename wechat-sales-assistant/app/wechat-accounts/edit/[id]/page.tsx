@@ -14,8 +14,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from "@/components/ui/use-toast"
 import { ArrowLeft, Loader2, User, Bot, Brain, Users2 } from "lucide-react"
 import { wechatAccountApi, type WechatBotWithConfig, type UpdateWechatBotConfigRequest } from "@/lib/wechat-accounts-api"
-import { userApi } from "@/lib/api-client"
-import type { User as UserType } from "@/lib/auth"
 
 export default function EditWechatAccountPage() {
   const router = useRouter()
@@ -26,7 +24,6 @@ export default function EditWechatAccountPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [bot, setBot] = useState<WechatBotWithConfig | null>(null)
-  const [users, setUsers] = useState<UserType[]>([])
   
   // 表单数据 - 使用部分类型以支持未设置的值
   const [formData, setFormData] = useState<Partial<UpdateWechatBotConfigRequest>>({})
@@ -59,10 +56,6 @@ export default function EditWechatAccountPage() {
             unhandled_question_action: "reply_text",
           })
         }
-        
-        // 加载用户列表
-        const usersData = await userApi.list()
-        setUsers(usersData.data)
       } catch (error) {
         console.error('Failed to load data:', error)
         toast({
@@ -264,6 +257,48 @@ export default function EditWechatAccountPage() {
                     />
                   </div>
                 )}
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">触发条件</h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="wake_words">唤醒词</Label>
+                  <Input
+                    id="wake_words"
+                    placeholder="输入唤醒词，多个词用英文逗号分隔，如：小助手,助手,你好"
+                    value={formData.wake_words || ""}
+                    onChange={(e) => setFormData(prev => ({ ...prev, wake_words: e.target.value }))}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    设置唤醒词后，机器人将在检测到这些词时触发回复。留空则仅响应@消息。
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="reply_on_mention">@提及时回复</Label>
+                    <p className="text-sm text-muted-foreground">被@时自动触发回复</p>
+                  </div>
+                  <Switch
+                    id="reply_on_mention"
+                    checked={formData.reply_trigger_on_mention !== false}
+                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, reply_trigger_on_mention: checked }))}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="trigger_words">触发关键词</Label>
+                  <Input
+                    id="trigger_words"
+                    placeholder="其他触发关键词，多个词用英文逗号分隔"
+                    value={formData.reply_trigger_words || ""}
+                    onChange={(e) => setFormData(prev => ({ ...prev, reply_trigger_words: e.target.value }))}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    除唤醒词外的其他触发关键词，可用于特定场景的触发。
+                  </p>
+                </div>
               </div>
 
               <div className="space-y-4">

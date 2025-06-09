@@ -95,6 +95,7 @@ class BotConfigBase(SQLModel):
     listen_mode_group_chat: ListenModeGroup = ListenModeGroup.NONE
     reply_trigger_on_mention: bool = True
     reply_trigger_words: Optional[str] = None
+    wake_words: Optional[str] = None  # 唤醒词，多个词用英文逗号分隔
     welcome_new_group_member: bool = False
     new_member_welcome_message: Optional[str] = None
     
