@@ -19,7 +19,8 @@ from app.models import UserPublic, User
 # )
 from modules.auth.deps import SessionDep, CurrentUser, SuperUser
 from modules.auth.models import (
-    UserLogin, UserRegister, Token, Message, NewPassword, UpdatePassword
+    UserLogin, UserRegister, Token, Message, NewPassword, UpdatePassword,
+    ClientType
 )
 from modules.auth.service import (
     authenticate, create_access_token, get_password_hash, 
@@ -73,10 +74,16 @@ def login(session: SessionDep, login_data: UserLogin) -> Any:
     elif not user.is_active:
         return ErrorResponse(error=403, message="账户已被禁用")
     
-    # 生成访问令牌
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    # 根据客户端类型生成不同过期时间的访问令牌
+    if login_data.client_type == ClientType.BOT:
+        # 为机器人设置一个超长过期时间，例如10年
+        expires_delta = timedelta(days=365 * 10)
+    else:
+        # 为Web端设置配置的过期时间
+        expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+
     access_token = create_access_token(
-        user.id, expires_delta=access_token_expires
+        subject=user.id, expires_delta=expires_delta
     )
     
     # 返回用户信息

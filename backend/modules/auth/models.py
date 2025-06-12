@@ -3,13 +3,19 @@
 """
 from pydantic import EmailStr, Field
 from sqlmodel import SQLModel
+from enum import Enum
 
 
 # 登录请求模型
+class ClientType(str, Enum):
+    WEB = "web"
+    BOT = "bot"
+
 class UserLogin(SQLModel):
     """用户登录请求模型"""
     username: str  # 可以是用户名或邮箱
     password: str
+    client_type: ClientType = ClientType.WEB # 默认为web客户端
 
 
 # 用户注册模型
