@@ -7,6 +7,7 @@ from sqlmodel import Session, select, and_, or_
 from fastapi import HTTPException, status
 
 from modules.users.models import User
+from modules.auth.service import get_password_hash, verify_password
 from .models import (
     WechatBot, WechatBotCreate, WechatBotUpdate,
     BotConfig, BotConfigUpdate,
@@ -107,6 +108,15 @@ class WechatAccountService:
         # 移除原有的权限限制，现在user角色也可以创建机器人
         # 所有认证用户都可以创建机器人，但要受到数量限制
         
+        # 检查机器人名字是否重复
+        existing_bot_statement = select(WechatBot).where(WechatBot.name == bot_create.name)
+        existing_bot = db.exec(existing_bot_statement).first()
+        if existing_bot:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"机器人名字 '{bot_create.name}' 已存在，请选择其他名字"
+            )
+        
         # 检查用户的机器人数量限制
         statement = select(WechatBot).where(WechatBot.owner_id == current_user.id)
         current_bot_count = len(db.exec(statement).all())
@@ -118,8 +128,10 @@ class WechatAccountService:
             )
         
         # 创建机器人实例，使用当前用户作为owner
-        bot_data = bot_create.dict()
+        bot_data = bot_create.dict(exclude={'password'})
         bot_data['owner_id'] = current_user.id  # 使用当前用户作为owner
+        # 处理密码哈希
+        bot_data['hashed_password'] = get_password_hash(bot_create.password)
         bot = WechatBot(**bot_data)
         db.add(bot)
         db.commit()
@@ -145,6 +157,11 @@ class WechatAccountService:
             return None
         
         update_data = bot_update.dict(exclude_unset=True)
+        # 处理密码更新
+        if 'password' in update_data and update_data['password']:
+            bot.hashed_password = get_password_hash(update_data['password'])
+            del update_data['password']  # 删除明文密码，不直接设置到模型上
+        
         for key, value in update_data.items():
             setattr(bot, key, value)
         
@@ -340,6 +357,35 @@ class WechatAccountService:
             RecipientInfo(user_id=recipient.user_id, name=user.full_name or user.username)
             for recipient, user in results
         ]
+    
+    @staticmethod
+    def authenticate_bot(
+        db: Session,
+        bot_name: str,
+        password: str
+    ) -> Optional[WechatBot]:
+        """验证机器人身份
+        
+        Args:
+            db: 数据库会话
+            bot_name: 机器人名称
+            password: 机器人密码
+            
+        Returns:
+            验证成功返回机器人对象，失败返回None
+        """
+        # 通过机器人名称查找机器人
+        statement = select(WechatBot).where(WechatBot.name == bot_name)
+        bot = db.exec(statement).first()
+        
+        if not bot:
+            return None
+        
+        # 验证密码
+        if not verify_password(password, bot.hashed_password):
+            return None
+        
+        return bot
     
     @staticmethod
     def get_bot_escalation_recipients(db: Session, bot_id: int) -> List[RecipientInfo]:

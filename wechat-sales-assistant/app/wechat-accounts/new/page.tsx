@@ -19,7 +19,9 @@ export default function NewWechatAccountPage() {
   const [error, setError] = useState<string | null>(null)
   
   const [formData, setFormData] = useState({
-    name: ""
+    name: "",
+    password: "",
+    confirmPassword: ""
   })
 
   // 检查认证状态
@@ -51,9 +53,45 @@ export default function NewWechatAccountPage() {
       return
     }
 
+    if (!formData.password) {
+      const errorMsg = "密码为必填项"
+      setError(errorMsg)
+      toast({
+        title: "请填写密码",
+        description: errorMsg,
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (formData.password.length < 6) {
+      const errorMsg = "密码长度至少为6位"
+      setError(errorMsg)
+      toast({
+        title: "密码太短",
+        description: errorMsg,
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      const errorMsg = "两次输入的密码不一致"
+      setError(errorMsg)
+      toast({
+        title: "密码不一致",
+        description: errorMsg,
+        variant: "destructive",
+      })
+      return
+    }
+
     setLoading(true)
     try {
-      const bot = await wechatAccountApi.create(formData)
+      const bot = await wechatAccountApi.create({
+        name: formData.name,
+        password: formData.password
+      })
       toast({
         title: "创建成功",
         description: "微信机器人创建成功，正在跳转到配置页面...",
@@ -129,6 +167,43 @@ export default function NewWechatAccountPage() {
               <p className="text-sm text-muted-foreground">
                 用于在后台管理中识别不同的机器人
               </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">密码 *</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="请输入密码"
+                value={formData.password}
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, password: e.target.value }))
+                  if (error) {
+                    setError(null)
+                  }
+                }}
+                disabled={loading}
+              />
+              <p className="text-sm text-muted-foreground">
+                机器人客户端登录时需要使用此密码
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">确认密码 *</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="请再次输入密码"
+                value={formData.confirmPassword}
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))
+                  if (error) {
+                    setError(null)
+                  }
+                }}
+                disabled={loading}
+              />
             </div>
 
             <div className="flex justify-end space-x-4">

@@ -104,10 +104,17 @@ export interface WechatBotsResponse {
 
 export interface CreateWechatBotRequest {
   name: string
+  password: string
+}
+
+export interface UpdateWechatBotRequest {
+  name?: string
+  password?: string
 }
 
 export interface UpdateWechatBotConfigRequest extends Partial<Omit<BotConfig, 'id' | 'bot_id'>> {
   name?: string
+  password?: string
 }
 
 export interface OperationResponse {

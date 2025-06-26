@@ -11,8 +11,16 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/use-toast"
-import { ArrowLeft, Loader2, User, Bot, Brain, Users2 } from "lucide-react"
+import { ArrowLeft, Loader2, User, Bot, Brain, Users2, Key } from "lucide-react"
 import { wechatAccountApi, type WechatBotWithConfig, type UpdateWechatBotConfigRequest } from "@/lib/wechat-accounts-api"
 
 export default function EditWechatAccountPage() {
@@ -24,6 +32,12 @@ export default function EditWechatAccountPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [bot, setBot] = useState<WechatBotWithConfig | null>(null)
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false)
+  const [passwordForm, setPasswordForm] = useState({
+    newPassword: "",
+    confirmPassword: ""
+  })
+  const [savingPassword, setSavingPassword] = useState(false)
   
   // 表单数据 - 使用部分类型以支持未设置的值
   const [formData, setFormData] = useState<Partial<UpdateWechatBotConfigRequest>>({})
@@ -90,6 +104,56 @@ export default function EditWechatAccountPage() {
       })
     } finally {
       setSaving(false)
+    }
+  }
+
+  // 处理密码修改
+  const handlePasswordSave = async () => {
+    // 验证密码
+    if (!passwordForm.newPassword) {
+      toast({
+        title: "请输入新密码",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      toast({
+        title: "密码太短",
+        description: "密码长度至少为6位",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({
+        title: "密码不一致",
+        description: "两次输入的密码不一致",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setSavingPassword(true)
+    try {
+      await wechatAccountApi.update(botId, { password: passwordForm.newPassword })
+      toast({
+        title: "密码修改成功",
+        description: "机器人密码已更新",
+      })
+      setShowPasswordDialog(false)
+      setPasswordForm({ newPassword: "", confirmPassword: "" })
+    } catch (error) {
+      console.error('Failed to update password:', error)
+      toast({
+        title: "密码修改失败",
+        description: error instanceof Error ? error.message : "修改密码失败",
+        variant: "destructive",
+      })
+    } finally {
+      setSavingPassword(false)
     }
   }
 
@@ -177,6 +241,23 @@ export default function EditWechatAccountPage() {
                 <p className="text-sm text-muted-foreground">
                   机器人连接后，可以从好友列表中选择负责人。负责人将接收重要通知和人工接管请求。
                 </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>机器人密码</Label>
+                <div className="flex items-center gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowPasswordDialog(true)}
+                  >
+                    <Key className="h-4 w-4 mr-2" />
+                    修改密码
+                  </Button>
+                  <p className="text-sm text-muted-foreground">
+                    机器人客户端登录时需要使用的密码
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -371,6 +452,56 @@ export default function EditWechatAccountPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* 修改密码对话框 */}
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>修改机器人密码</DialogTitle>
+            <DialogDescription>
+              请输入新的密码，机器人客户端将使用此密码进行登录
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">新密码</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                placeholder="请输入新密码"
+                value={passwordForm.newPassword}
+                onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">确认密码</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="请再次输入密码"
+                value={passwordForm.confirmPassword}
+                onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowPasswordDialog(false)
+                setPasswordForm({ newPassword: "", confirmPassword: "" })
+              }}
+              disabled={savingPassword}
+            >
+              取消
+            </Button>
+            <Button onClick={handlePasswordSave} disabled={savingPassword}>
+              {savingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              确认修改
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 } 

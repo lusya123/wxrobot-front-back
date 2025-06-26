@@ -67,7 +67,7 @@ class ToneStyle(str, Enum):
 # 微信机器人基础模型
 class WechatBotBase(SQLModel):
     """微信机器人基础模型"""
-    name: str = SQLField(max_length=255)
+    name: str = SQLField(max_length=255, unique=True)
     owner_id: uuid.UUID
     wxid: Optional[str] = SQLField(default=None, unique=True, max_length=255)
     avatar: Optional[str] = SQLField(default=None, max_length=1024)
@@ -122,6 +122,7 @@ class WechatBot(WechatBotBase, table=True):
     
     id: int = SQLField(sa_column=Column(BigInteger, primary_key=True, autoincrement=True))
     owner_id: uuid.UUID = SQLField(foreign_key="users.id")
+    hashed_password: str = SQLField(max_length=255)  # 添加密码字段
     status: BotStatus = SQLField(
         sa_column=Column(
             SQLAlchemyEnum(
@@ -277,11 +278,13 @@ class BotEscalationRecipient(SQLModel, table=True):
 class WechatBotCreate(BaseModel):
     """创建微信机器人请求模型"""
     name: str
+    password: str  # 添加密码字段
 
 
 class WechatBotUpdate(BaseModel):
     """更新微信机器人请求模型"""
     name: Optional[str] = None
+    password: Optional[str] = None  # 添加可选的密码字段
 
 
 class MonitoredChatInfo(BaseModel):
